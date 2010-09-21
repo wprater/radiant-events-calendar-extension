@@ -1,5 +1,7 @@
 - include_javascript 'controls'
 - default_filter_name = "#{@event.filter_id}"
+- gallery_options = Gallery.find(:all).collect{|g| [g.name, g.id]}.unshift(['None', nil])
+
 - content_for :page_scripts do
   :plain
     var last_events_calendar_filter = "";
@@ -7,7 +9,7 @@
       var filter_type = $F('event_filter_id');
       var popup = $('filter-reference-popup');
       if (last_events_calendar_filter != filter_type) {
-        var url = "#{admin_reference_path(:id => 'filters')}";
+        var url = "#{admin_reference_path('filters')}";
         var params = "filter_name=" + filter_type;
         new Effect.Highlight('filter-reference-link-event');
         req = new Ajax.Request(url, { method: 'get', parameters: params, evalScripts: true });
@@ -34,6 +36,25 @@
           Location
           %span.note (optional)
         = f.text_field :location, :class => 'textbox', :maxlength => 255
+
+      %p.title
+        %label{:for => 'event_price'}
+          Price
+          %span.note (optional)
+        = f.text_field :price, :class => 'textbox', :maxlength => 255
+
+      %p.title
+        %label{:for => 'event_reservation_details'}
+        Reservation Details
+        %span.note (optional - email, phone number)
+      = f.text_field :reservation_details, :class => 'textbox', :maxlength => 255
+
+      %p.title
+        %label{:for => 'event_website'}
+          Website
+          %span.note (optional)
+        = f.text_field :website, :class => 'textbox', :maxlength => 255
+
       .schedule
         .date
           %p.title
@@ -45,14 +66,15 @@
               Start Time
               %br
               %span.note (optional)
-            = f.time_select :start_time, { :default => @event.start_time ? @event.start_time : nil, :time_separator => '', :minute_interval => 15, :include_blank => true, :simple_time_select => true }
+            =# f.time_select :start_time, { :default => @event.start_time ? @event.start_time : nil, :time_separator => '', :minute_interval => 15, :include_blank => true, :simple_time_select => true }
+            =#  @event.start_time.to_s
         .time
           %p.title
             %label{:for => 'event_end_time'}
               End Time
               %br
               %span.note (optional)
-            = f.time_select :end_time, { :default => @event.end_time ? @event.end_time : nil, :time_separator => '', :minute_interval => 15, :include_blank => true, :simple_time_select => true }
+            =# f.time_select :end_time, { :default => @event.end_time ? @event.end_time : nil, :time_separator => '', :minute_interval => 15, :include_blank => true, :simple_time_select => true }
         .timezone
           %p.title
             %label{:for => 'event_timezone'} Timezone
@@ -60,6 +82,12 @@
       %p.title
         %label{:for => 'event_description'} Description
         ~ f.text_area 'description', :class => 'textbox', :size => '60x10'
+      %p.title
+        %label{:for => 'event_excerpt'} Excerpt
+        ~ f.text_area 'excerpt', :class => 'textbox', :size => '60x10'
+      %p.title
+        %label{:for => 'event_base_gallery_id'} Gallery
+        = select 'event', 'base_gallery_id', Gallery.find(:all).collect{|g| [g.name, g.id]}.unshift(['None', nil]), :id => 'event_base_gallery_id'
       %p.title
         %label{:for => 'event_filter_id'} Filter
         = select_tag 'event[filter_id]', filter_options_for_select(default_filter_name), :id => 'event_filter_id'
