@@ -2,7 +2,8 @@
 
 A calendar of events for Radiant CMS.
 
-Note: This version of the events_calendar extension is compatible with Radiant 0.8.
+Note: This version of the events_calendar extension is compatible with Radiant 0.9.
+If you are using Radiant 0.8.x, please pull from the radiant-0.8.1 branch.
 If you are using Radiant 0.7.1, please pull from the radiant-0.7.1 branch.
 
 WARNING: The syntax of the `<r:events>` tag changed between version 0.3 and 0.4.
@@ -22,15 +23,6 @@ use
 
 == Installation
 
-This extension relies on the share_layouts extension, so install it first if you
-are not already using it:
-
-  git clone git://github.com/radiant/radiant-share-layouts-extension.git vendor/extensions/share_layouts
-
-Edit config/environment.rb to force share_layouts to load first:
-
-  config.extensions = [ :share_layouts, :all ]
-
 Install the events_calendar extension:
 
   git clone git://github.com/davec/radiant-events-calendar-extension.git vendor/extensions/events_calendar
@@ -41,13 +33,18 @@ Now, run the migration and copy the public assets:
   rake radiant:extensions:events_calendar:migrate
 
 To use the calendar, you must include the provided JavaScript and CSS files in
-your layout. The included JavaScript relies on the Prototype library, so it must
-also be added if it is not already included. Add the following to your layout
-header:
+your layout. The included JavaScript relies on the Prototype and LowPro
+libraries, so they must also be loaded prior to loading the events_calendar.js
+file. Add the following to your layout header:
 
   <link rel="stylesheet" type="text/css" href="/stylesheets/events_calendar.css" />
   <script type="text/javascript" src="/javascripts/prototype.js"></script>
+  <script type="text/javascript" src="/javascripts/lowpro.js"></script>
   <script type="text/javascript" src="/javascripts/events_calendar.js"></script>
+
+An alternate version of the JavaScript file, named events_calendar_jquery.js,
+is provided for use with jQuery (the minimum jQuery version is 1.4.2 and is
+not included).
 
 Events can be created and manged from the Events tab in the admin UI. A
 calendar and listings of events can be displayed in your templates using the
@@ -55,10 +52,12 @@ supplied Radius tags.
 
 == Configuration
 
-As distributed, the template for individual event listings does not include any
-snippets or other page formatting beyond the listings themselves. You should alter
-vendor/extensions/events_calendar/app/views/events/show.html.haml as appropriate
-for your site.
+This extension uses a custom page type called Events that is used to show all
+events for a specific day via the /events/year/month/day path. (This replaces
+the events show template that was previously used.) A default events page is
+installed unless a page with a slug named `events` already exists.
+
+When used in an Events page, the <r:events> tag does not take any attributes.
 
 == Example
 

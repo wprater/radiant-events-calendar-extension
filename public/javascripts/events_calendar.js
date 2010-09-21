@@ -1,13 +1,13 @@
-if (typeof Prototype == 'undefined')
-  throw("events_calendar.js requires the prototype.js library");
+if (typeof Prototype == 'undefined' || typeof LowPro == 'undefined')
+  throw("events_calendar.js requires the prototype.js and lowpro.js libraries");
 
 var ToolTips = $H();
 var ActiveToolTip = null;
 
 var ToolTip = Class.create({
-  initialize: function(element, parent_element, offset_x, offset_y) {
-    this.element = $(element);
-    this.parent = $(parent_element);
+  initialize: function(element, parent, offset_x, offset_y) {
+    this.element  = element;
+    this.parent   = parent;
     this.offset_x = offset_x;
     this.offset_y = offset_y;
   },
@@ -65,7 +65,7 @@ function makeToolTips() {
   $$('div.calendar-data').each(function(e){
     var jd = e.id.replace(/\D+(\d+)/, '$1');
     calendar_cell = $('day-'+jd);
-    ToolTips[jd] = new ToolTip(e.id, $('day-'+jd), 5, 5);
+    ToolTips[jd] = new ToolTip($(e), calendar_cell, 5, 5);
     if (use_writeAttribute) {
       calendar_cell.writeAttribute({onmouseover:'ToolTips['+jd+'].show()',
                                     onmouseout:'ToolTips['+jd+'].hide()'});
@@ -75,3 +75,21 @@ function makeToolTips() {
     }
   });
 }
+
+Event.onReady(function() {
+  makeToolTips();
+});
+
+Event.addBehavior({
+  '#events-calendar .changeMonth a:click': function() {
+    new Ajax.Request(this.href, { method: 'get',
+                                  evalJS: false,
+                                  onSuccess: function(response) {
+                                    $('events-calendar').replace(response.responseText),
+                                    makeToolTips();
+                                    Event.addBehavior.reload();
+                                  }
+                                });
+    return false;
+  }
+});

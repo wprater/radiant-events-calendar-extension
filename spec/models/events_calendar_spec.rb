@@ -9,7 +9,7 @@ describe 'EventsCalendar' do
       tag = %{<r:calendar />}
 
       today = Date.today
-      expected = %r{\A<div id=\"events-calendar\">.*<th[^>]*>#{Date::MONTHNAMES[today.month]}\n?</th>.*<td[^>]*><a href=\"/events/#{today.year}/#{today.month}/#{today.mday}\">#{today.mday}</a>.*</table>\n?<div class='calendar-data tooltip'.*<\/div>\n?<script type=\"text/javascript\">.*</script>\n?</div>\Z}m
+      expected = %r{\A<div id=\"events-calendar\">.*<th[^>]*>#{Date::MONTHNAMES[today.month]}\n?</th>.*<td[^>]*><a href=\"/events/#{today.year}/#{today.month}/#{today.mday}\">#{today.mday}</a>.*</table>\n?<div class='calendar-data tooltip'.*<\/div>\n?</div>\Z}m
 
       pages(:home).should render(tag).matching(expected)
     end
@@ -17,7 +17,7 @@ describe 'EventsCalendar' do
     it 'should render a calendar for the specified month and year' do
       tag = %{<r:calendar year='2009' month='1' />}
 
-      expected = %r{\A<div id=\"events-calendar\">.*<th[^>]*>#{Date::MONTHNAMES[1]}\n?</th>.*</table>\n?<script type=\"text/javascript\">.*</script>\n?</div>\Z}m
+      expected = %r{\A<div id=\"events-calendar\">.*<th[^>]*>#{Date::MONTHNAMES[1]}\n?</th>.*</table>\n?</div>\Z}m
 
       pages(:home).should render(tag).matching(expected)
     end
@@ -118,7 +118,7 @@ describe 'EventsCalendar' do
 
     it 'should require a valid field name for the by attribute' do
       tag = %{<r:events by='pants'><r:each><r:event:name/></r:each></r:events>}
-      pages(:home).should render(tag).with_error("`by' attribute of `each' tag must be set to a valid field name")
+      pages(:home).should render(tag).with_error("the `by' attribute of the `each' tag must be set to a valid field name")
     end
 
     it 'should require a valid order attribute' do
@@ -220,6 +220,42 @@ describe 'EventsCalendar' do
 
   end
 
+  describe '<r:events:each:event:time:start>' do
+
+    it 'should return the event start time in the default format' do
+      tag = %Q{<r:events for='#{Date.today.year}-01-15'><r:each><r:event:time:start /></r:each></r:events>}
+      expected = "08:00"
+
+      pages(:home).should render(tag).as(expected)
+    end
+
+    it 'should return the event start time in the given format' do
+      tag = %Q{<r:events for='#{Date.today.year}-01-15'><r:each><r:event:time:start format='%I:%M %p' /></r:each></r:events>}
+      expected = "08:00 AM"
+
+      pages(:home).should render(tag).as(expected)
+    end
+
+  end
+
+  describe '<r:events:each:event:time:end>' do
+
+    it 'should return the event end time in the default format' do
+      tag = %Q{<r:events for='#{Date.today.year}-01-15'><r:each><r:event:time:end /></r:each></r:events>}
+      expected = "17:00"
+
+      pages(:home).should render(tag).as(expected)
+    end
+
+    it 'should return the event end time in the given format' do
+      tag = %Q{<r:events for='#{Date.today.year}-01-15'><r:each><r:event:time:end format='%I:%M %p' /></r:each></r:events>}
+      expected = "05:00 PM"
+
+      pages(:home).should render(tag).as(expected)
+    end
+
+  end
+
   describe '<r:events:each:event:location>' do
 
     it 'should return the event location' do
@@ -235,9 +271,23 @@ describe 'EventsCalendar' do
 
     it 'should return the event description' do
       tag = %Q{<r:events for='#{Date.today.year}-01-01'><r:each><r:event:description /></r:each></r:events>}
-      expected = "New Year's Party"
+      expected = "<p>New Year's Party</p>"
 
       pages(:home).should render(tag).as(expected)
+    end
+
+    %w(true false).each do |sanitization|
+      it %Q{should accept sanitize="#{sanitization}"} do
+        tag = %Q{<r:events for='#{Date.today.year}-01-01'><r:each><r:event:description sanitize="#{sanitization}" /></r:each></r:events>}
+        expected = "<p>New Year's Party</p>"
+        
+        pages(:home).should render(tag).as(expected)
+      end
+    end
+
+    it 'should require a valid value for sanitize' do
+      tag = %Q{<r:events for='#{Date.today.year}-01-01'><r:each><r:event:description sanitize="foo" /></r:each></r:events>}
+      pages(:home).should render(tag).with_error(%{the `sanitize' attribute of the `description' tag must be either "true" or "false"})
     end
 
   end

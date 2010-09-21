@@ -22,14 +22,20 @@ module EventsCalendarTags
   desc %{
     Gives access to all events, sorted by start_time by default.
 
-    The `for` attribute can be any of the following:
+    The <code>for</code> attribute can be any of the following:
     * "today"
     * "tomorrow"
     * "yesterday"
-    * a date in this format: "YYYY-MM-DD" (ex: 2009-03-14)
-    * a specified number of days, weeks, months, or years either in the future or past (e.g., "next 2 weeks", "previous 7 days")
+    * a date in YYYY-MM-DD format (e.g., 2009-03-14)
+    * a relative number of days, weeks, months, or years from the current day (e.g., "next 2 weeks", "previous 7 days")
 
-    The `inclusive` attribute applies to relative `for` values. If set to `true` (the default) then `today` is included; otherwise `today` is excluded.
+    The <code>inclusive</code> attribute applies to relative <code>for</code> values. If set to <code>true</code> (the default) then <code>today</code> is included; otherwise <code>today</code> is excluded.
+
+    Events can be sorted (with the <code>by</code> attribute) by name, location, date,
+    start_time, or end_time; the order of sorting is determined by the <code>order</code>
+    attribute (default sorting is in ascending order by event start time).
+
+    *Usage:*
 
     <pre><code><r:events [for="date" [inclusive="true|false"]] [by="attribute"] [order="asc|desc"] [limit="number"] [offset="number"]/></code></pre>
   }
@@ -103,36 +109,41 @@ module EventsCalendarTags
     Renders the name for the current event.
   }
   tag 'event:name' do |tag|
-    event = tag.locals.event
-    event.name
+    tag.locals.event.name
   end
 
   desc %{
     Renders the date for the current event.
-    An optional date format string may be specified.
-    The default format string is <code>%Y-%m-%d</code>.
+
+    An optional date format string, as used for <code>Date#strftime</code>, may be
+    specified with the <code>format</code> attribute (the default <code>%Y-%m-%d</code>).
 
     *Usage:*
     <pre><code><r:event:date /></code></pre>
     <pre><code><r:event:date format='%d %b %Y' /></code></pre>
   }
   tag 'event:date' do |tag|
-    event = tag.locals.event
     format = tag.attr['format'] || '%Y-%m-%d'
-    event.date.strftime(format)
+    tag.locals.event.date.strftime(format)
   end
 
   desc %{
     Renders the time for the current event.
-    An optional time format string and time connector, for time ranges, may be specified.
-    The default format string is <code>%H:%M</code> and the default connector is <code>-</code> (hyphen).
-    The time connector is only used when an event has both a start time and an end time.
+
+    An optional time format string, as used for <code>Date#strftime</code>, may be
+    specified with the <code>format</code> attribute (the default is <code>%H:%M</code>).
+    
+    For events with both start and end time values, the <code>connector</code> attribute
+    sets the text that separates the start and end time strings (the default
+    is a single hyphen).
 
     *Usage:*
     <pre><code><r:event:time /></code></pre>
     <pre><code><r:event:time format='%I:%M %p' connector='to' /></code></pre>
   }
   tag 'event:time' do |tag|
+    return tag.expand if tag.double?
+
     event = tag.locals.event
     return '' unless event.start_time
 
@@ -143,35 +154,154 @@ module EventsCalendarTags
   end
 
   desc %{
+    Render inner content if the current event has a defined start time.
+
+    *Usage:*
+    <pre><code><r:event:if_time>...</r:event:if_time></code></pre>
+  }
+  tag 'event:if_time' do |tag|
+    tag.expand if tag.locals.event.start_time
+  end
+
+  desc %{
+    Render inner content if the current event does not have a defined start time.
+
+    *Usage:*
+    <pre><code><r:event:unless_time>...</r:event:unless_time></code></pre>
+  }
+  tag 'event:unless_time' do |tag|
+    tag.expand unless tag.locals.event.start_time
+  end
+
+  desc %{
+    Renders the start time for the current event.
+    The default time format is <code>%H:%M</code> but can be changed by setting a different format with the <code>format</code> attribute.
+
+    *Usage:*
+    <pre><code><r:event:time:start /></code></pre>
+    <pre><code><r:event:time:start format='%I:%M %p' /></code></pre>
+  }
+  tag 'event:time:start' do |tag|
+    event = tag.locals.event
+    return '' unless event.start_time
+
+    format = tag.attr['format'] || '%H:%M'
+    event.start_time.strftime(format)
+  end
+
+  desc %{
+    Renders the end time for the current event.
+    The default time format is <code>%H:%M</code> but can be changed by setting a different format with the <code>format</code> attribute.
+
+    *Usage:*
+    <pre><code><r:event:time:end /></code></pre>
+    <pre><code><r:event:time:end format='%I:%M %p' /></code></pre>
+  }
+  tag 'event:time:end' do |tag|
+    event = tag.locals.event
+    return '' unless event.end_time
+
+    format = tag.attr['format'] || '%H:%M'
+    event.end_time.strftime(format)
+  end
+
+  desc %{
     Renders the location for the current event.
   }
   tag 'event:location' do |tag|
-    event = tag.locals.event
-    event.location
+    tag.locals.event.location
   end
 
   desc %{
-    Renders the description for the current event.
+    Render inner content if the current event has a location.
+
+    *Usage:*
+    <pre><code><r:event:if_location>...</r:event:if_location></code></pre>
+  }
+  tag 'event:if_location' do |tag|
+    tag.expand if tag.locals.event.location
+  end
+
+  desc %{
+    Render inner content if the current event does not have a location.
+
+    *Usage:*
+    <pre><code><r:event:unless_location>...</r:event:unless_location></code></pre>
+  }
+  tag 'event:unless_location' do |tag|
+    tag.expand unless tag.locals.event.location
+  end
+
+  desc %{
+    Renders the HTML-formatted description for the current event.
+
+    The returned HTML is sanitized for your protection using <code>HTML::WhiteListSanitizer#sanitize</code>.
+    If sanitization is not desired, specify <code>sanitize="false"</code>.
+
+    *Usage:*
+    <pre><code><r:event:description /></code></pre>
+    <pre><code><r:event:description sanitize="false" /></code></pre>
   }
   tag 'event:description' do |tag|
     event = tag.locals.event
-    event.description_html
+    sanitize = tag.attr['sanitize'] || 'true'
+    case sanitize
+    when 'false'
+      event.description_html
+    when 'true'
+      @sanitizer ||= HTML::WhiteListSanitizer.new
+      @sanitizer.sanitize(event.description_html)
+    else
+      raise TagError, %{the `sanitize' attribute of the `description' tag must be either "true" or "false"}
+    end
   end
 
   desc %{
-    Renders the short description for the current event.
+    Render inner content if the current event has a description.
+
+    *Usage:*
+    <pre><code><r:event:if_description>...</r:event:if_description></code></pre>
   }
-  tag 'event:description:short' do |tag|
-    event = tag.locals.event
-    event.short_description
+  tag 'event:if_description' do |tag|
+    tag.expand if tag.locals.event.description
+  end
+
+  desc %{
+    Render inner content if the current event does not have a description.
+
+    *Usage:*
+    <pre><code><r:event:unless_description>...</r:event:unless_description></code></pre>
+  }
+  tag 'event:unless_description' do |tag|
+    tag.expand unless tag.locals.event.description
+>>>>>>> upstream/master:app/models/events_calendar_tags.rb
   end
 
   desc %{
     Renders the category for the current event.
   }
   tag 'event:category' do |tag|
-    event = tag.locals.event
-    event.category
+    tag.locals.event.category
+  end
+
+  desc %{
+    Render inner content if the current event has a category.
+
+    *Usage:*
+    <pre><code><r:event:if_category>...</r:event:if_category></code></pre>
+  }
+  tag 'event:if_category' do |tag|
+    tag.expand if tag.locals.event.category
+  end
+
+  desc %{
+    Render inner content if the current event does not have a category.
+
+    *Usage:*
+    <pre><code><r:event:unless_category>...</r:event:unless_category></code></pre>
+  }
+  tag 'event:unless_category' do |tag|
+    tag.expand unless tag.locals.event.category
   end
   
   %w[price reservation_details website].each do |method|
@@ -247,6 +377,7 @@ module EventsCalendarTags
   end
 
   private
+
     def events_find_options(tag)
       attr = tag.attr.symbolize_keys
 
@@ -259,7 +390,7 @@ module EventsCalendarTags
           if number =~ /^\d{1,4}$/
             options[symbol] = number.to_i
           else
-            raise TagError.new("`#{symbol}' attribute of `each' tag must be a positive number between 1 and 4 digits")
+            raise TagError, %{the `#{symbol}' attribute of the `each' tag must be a positive number between 1 and 4 digits}
           end
         end
       end
@@ -270,12 +401,12 @@ module EventsCalendarTags
       if Event.column_names.include?(by)
         order_string << by
       else
-        raise TagError.new("`by' attribute of `each' tag must be set to a valid field name")
+        raise TagError, %{the `by' attribute of the `each' tag must be set to a valid field name}
       end
       if order =~ /^(asc|desc)$/i
         order_string << " #{$1.upcase}"
       else
-        raise TagError.new(%{`order' attribute of `each' tag must be set to either "asc" or "desc"})
+        raise TagError, %{`order' attribute of `each' tag must be set to either "asc" or "desc"}
       end
       options[:order] = order_string
 
