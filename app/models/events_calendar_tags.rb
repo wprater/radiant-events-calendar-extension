@@ -1,9 +1,24 @@
 module EventsCalendarTags
   include Radiant::Taggable
   include CalendarsHelper
-
+  
+  # include ActionController::UrlWriter
+  
+  # def base_gallery_id
+  #   event = Event.find(@request.params[:id])
+  #   event.base_gallery_id
+  # end
+  
   class TagError < StandardError ; end
 
+  tag 'event' do |tag|
+    event = Event.find(@request.params[:id])
+    tag.locals.event = event
+    tag.locals.page.title = event.name
+    tag.locals.gallery ||= Gallery.find_by_id(event.base_gallery_id)
+    tag.expand
+  end
+  
   desc %{
     Gives access to all events, sorted by start_time by default.
 
@@ -19,6 +34,13 @@ module EventsCalendarTags
     <pre><code><r:events [for="date" [inclusive="true|false"]] [by="attribute"] [order="asc|desc"] [limit="number"] [offset="number"]/></code></pre>
   }
   tag 'events' do |tag|
+    filter_category = @request.params[:category]
+    # Show all events when on upcoming-events
+    if filter_category and 'upcoming-events' != filter_category
+      tag.attr['category'] = filter_category
+      # Set the title from the stub page with same category name
+      tag.globals.page.title = Page.find_by_url("#{@request.params[:url]}/#{filter_category}").title + " Events"
+    end
     tag.locals.events = Event.all(events_find_options(tag))
     tag.expand
   end
@@ -27,17 +49,54 @@ module EventsCalendarTags
     Loops through events.
   }
   tag 'events:each' do |tag|
+    tag.locals.previous_headers = {}
     tag.locals.events.collect do |event|
       tag.locals.event = event
       tag.expand
     end
   end
-
+  
+  
+  tag 'events:each:header' do |tag|
+    previous_headers = tag.locals.previous_headers || {}
+    name = tag.attr['name'] || :unnamed
+    restart = (tag.attr['restart'] || '').split(';')
+    header = tag.expand
+    unless header == previous_headers[name]
+      previous_headers[name] = header
+      unless restart.empty?
+        restart.each do |n|
+          previous_headers[n] = nil
+        end
+      end
+      header
+    end
+  end
+ 
   desc %{
     Creates the context for a single event.
   }
   tag 'events:each:event' do |tag|
     tag.expand
+  end
+
+  desc %{
+    Renders the location for the current event.
+  }
+  tag 'event:link' do |tag|
+    options = tag.attr.dup
+    base_url = options.delete('base_url')
+    event = tag.locals.event
+
+    url = base_url.nil? ? tag.render('url') : base_url
+    #url = tag.render('url')
+
+    anchor = options['anchor'] ? "##{options.delete('anchor')}" : ''
+    attributes = options.inject('') { |s, (k, v)| s << %{#{k.downcase}="#{v}" } }.strip
+    attributes = " #{attributes}" unless attributes.empty?
+    text = tag.double? ? tag.expand : event.name
+    %{<a href="#{url}#{event.category}/#{event.id}#{anchor}"#{attributes}>#{text}</a>}
+    # event_link(event)
   end
 
   desc %{
@@ -78,8 +137,9 @@ module EventsCalendarTags
     return '' unless event.start_time
 
     format = tag.attr['format'] || '%H:%M'
-    [ event.start_time.strftime(format),
-      event.end_time ? event.end_time.strftime(format) : nil ].compact.join(" #{tag.attr['connector'] || '-'} ")
+    times = [ event.start_time.strftime(format).gsub(/^0/,'').downcase, 
+              event.end_time ? event.end_time.strftime(format).gsub(/^0/,'').downcase : nil ]
+    times.compact.join(" #{tag.attr['connector'] || '-'} ")
   end
 
   desc %{
@@ -95,7 +155,15 @@ module EventsCalendarTags
   }
   tag 'event:description' do |tag|
     event = tag.locals.event
-    event.description
+    event.description_html
+  end
+
+  desc %{
+    Renders the short description for the current event.
+  }
+  tag 'event:description:short' do |tag|
+    event = tag.locals.event
+    event.short_description
   end
 
   desc %{
@@ -105,6 +173,54 @@ module EventsCalendarTags
     event = tag.locals.event
     event.category
   end
+  
+  %w[price reservation_details website].each do |method|
+    desc %{
+      Renders the #{method} for the current event.
+    }
+    tag "event:#{method}" do |tag|
+      event = tag.locals.event
+      event.send(method)
+    end
+    desc %{
+      Renders if the #{method} for the current event exists.
+    }
+    tag "event:if_#{method}" do |tag|
+      event = tag.locals.event
+      tag.expand if event.send(method)
+    end
+    desc %{
+      Renders unless the #{method} for the current event exists.
+    }
+    tag "event:unless_#{method}" do |tag|
+      event = tag.locals.event
+      tag.expand unless event.send(method)
+    end
+  end
+
+  # desc %{
+  #   Renders the price for the current event.
+  # }
+  # tag 'event:price' do |tag|
+  #   event = tag.locals.event
+  #   event.price
+  # end
+  # 
+  # desc %{
+  #   Renders the category for the current event.
+  # }
+  # tag 'event:reservation_details' do |tag|
+  #   event = tag.locals.event
+  #   event.reservation_details
+  # end
+  # 
+  # desc %{
+  #   Renders the website for the current event.
+  # }
+  # tag 'event:website' do |tag|
+  #   event = tag.locals.event
+  #   event.website
+  # end
 
   desc %{
     Creates a calendar for the given month.

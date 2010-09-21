@@ -7,10 +7,12 @@ class Event < ActiveRecord::Base
   validates_length_of :filter_id, :maximum => 25, :allow_nil => true, :message => '{{count}}-character limit'
   validate :ensure_start_time_and_end_time_are_sane
 
-  default_scope :order => "date, start_time"
+  default_scope :order => "date, start_time, name"
 
   named_scope :for_date, lambda {|date| { :conditions => [ 'date = ?', date ], :order => 'start_time, name' } }
   named_scope :for_month, lambda {|month, year| { :conditions => [ 'date BETWEEN ? AND ?', Date.civil(year,month,1), Date.civil(year,month,-1) ] } }
+  named_scope :future, lambda{|date| {:conditions => ['date >= ?', Time.now]}}
+  named_scope :past, lambda{|date| {:conditions => ['date <= ?', Time.now]}}
 
   attr_accessor :timezone, :start_time, :end_time
 
@@ -82,6 +84,7 @@ class Event < ActiveRecord::Base
       write_attribute(:start_time, @start_time.is_a?(Time) ? tz.local_to_utc(@start_time) : nil)
       write_attribute(:end_time, @end_time.is_a?(Time) ? tz.local_to_utc(@end_time) : nil)
       self.description_html = sanitize(filter.filter(description))
+      self.excerpt_html = sanitize(filter.filter(excerpt))
     end
 
   private
