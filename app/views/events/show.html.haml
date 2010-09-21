@@ -1,6 +1,6 @@
-- @title = "Events for #{@date.to_s(:long)}"
+- @title = "#{@category} Events"
 
-%dl.events
+%ul.events
   - @events.each do |event|
     %dt= h event.name
     - if event.category
@@ -9,9 +9,16 @@
       %dd.location= h event.location
     - unless event.time.blank?
       %dd.time= h event.time
-    %dd.description= sanitize(event.description_html) || '&nbsp;'
 
--#
-  Supply additional page parts as required by your design
-  - content_for :sidebar do
-    <r:snippet name='sidebar' />
+-# content_for :body do
+  <r:events for="next 12 months">
+  <ul category="#{@category}" class="dates events">
+  <r:each>
+  <r:header>
+  <li><h3 class="callout"><r:event:date format="%B %Y" /></h3></li>
+  </r:header>
+  <li><span class="posted"><r:event:date format="%m/%d/%y" /></span><r:event:name /> <r:event:time format='%I:%M %p' connector='to' /></li>
+  </r:each>
+  </ul>
+  </r:events>
+  

@@ -3,6 +3,7 @@
 %h1 Events
 
 %p
+  = %{View #{link_to('past',admin_events_path(:looking => 'back'))} or #{link_to('future', admin_events_path)} events.}
   Click on an event name below to edit it, or click <code>Remove</code> to delete it.
 
 %table#events.index
